@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<meta name="app-build" content="20261031035732">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
 <link rel="manifest" href="manifest.json">
@@ -2620,6 +2621,47 @@ if('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
   window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
   try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
 }
+/* 새 버전이 올라오면 "새로고침" 창을 띄워요 */
+(function(){
+  if(location.protocol.indexOf('http') !== 0) return;
+  var KEY = 'app-' + 'build', last = 0, snooze = 0;
+  function meta(txt){
+    var m = new RegExp(KEY + '" content="([^"]*)"').exec(txt);
+    return m ? m[1] : '';
+  }
+  var cur = (document.querySelector('meta[name="' + KEY + '"]') || {}).content || '';
+  function popup(){
+    if(document.getElementById('updPop')) return;
+    var d = document.createElement('div');
+    d.className = 'backdrop'; d.id = 'updPop'; d.style.zIndex = '70';
+    d.innerHTML = '<section class="sheet" role="dialog" aria-modal="true" aria-labelledby="updT" tabindex="-1">' +
+      '<div class="ed-head"><h2 id="updT">새 버전이 있어요</h2></div>' +
+      '<div class="stack"><p style="margin:0;line-height:1.6">앱이 업데이트됐어요. 새로고침하면 바로 적용돼요. 기록은 그대로 남아요.</p>' +
+      '<div class="sheet-actions"><button class="btn primary" id="updGo" type="button">새로고침</button>' +
+      '<button class="btn" id="updLater" type="button">나중에</button></div></div></section>';
+    document.body.appendChild(d);
+    document.getElementById('updGo').addEventListener('click', function(){
+      var done = function(){ location.reload(); };
+      try{
+        if(window.caches) caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); }).then(done, done);
+        else done();
+      }catch(e){ done(); }
+    });
+    document.getElementById('updLater').addEventListener('click', function(){ snooze = Date.now() + 10 * 60000; d.remove(); });
+  }
+  function check(){
+    var n = Date.now();
+    if(!cur || n - last < 60000 || n < snooze) return;
+    last = n;
+    fetch('index.html?v=' + n, { cache:'no-store' }).then(function(r){ return r.ok ? r.text() : ''; }).then(function(t){
+      var v = meta(t);
+      if(v && v !== cur) popup();
+    }).catch(function(){});
+  }
+  setTimeout(check, 2500);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') check(); });
+  setInterval(check, 30 * 60000);
+})();
 </script>
 </body>
 </html>
