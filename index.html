@@ -384,6 +384,23 @@ input[type=date]{height:44px;width:100%;min-width:0;border-radius:10px;border:1p
 .brand{margin:0;font-size:13px;font-weight:600;color:var(--muted)}
 input[data-time]{cursor:pointer;caret-color:transparent;font-family:var(--font-num);font-variant-numeric:tabular-nums}
 [hidden]{display:none!important}
+.wagebox{display:flex;align-items:center;gap:10px;min-height:44px}
+.wagebox b{font-family:var(--font-num);font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wagebox .pill{flex:none;white-space:nowrap;min-height:40px}
+.wcard .two{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+.whist{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:var(--muted)}
+.whist li{display:flex;align-items:center;gap:6px;min-height:32px}
+.whist button{margin-left:auto;border:0;background:transparent;color:var(--muted);font-size:18px;cursor:pointer;min-width:40px;min-height:36px;padding:0}
+.dsel{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:6px}
+.dsel select{width:100%;min-width:0}
+.pseg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pseg button,.pquick button{height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:15px;font-weight:600;cursor:pointer;padding:0}
+.pseg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.pquick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.pquick button{height:40px;font-size:13.5px}
+.wpay-act{display:flex;gap:8px;margin-top:12px}
+.wpay-act .pill{flex:1;min-height:44px}
+.wbackdrop{z-index:40}
 .tbackdrop{z-index:50}
 .tbig{margin:0;text-align:center;font-family:var(--font-num);font-size:36px;font-weight:600;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
 .tdisp{display:flex;align-items:center;justify-content:center;gap:10px}
@@ -493,6 +510,21 @@ input[data-time]{cursor:pointer;caret-color:transparent;font-family:var(--font-n
 
   <!-- 예상급여 -->
   <section class="panel" id="panel-pay" role="tabpanel" aria-labelledby="tab-pay" hidden>
+    <div class="card stack" id="payPeriod">
+      <h2>정산 기간</h2>
+      <div class="pseg"><button type="button" id="pmMonth" aria-pressed="true">월별</button><button type="button" id="pmRange" aria-pressed="false">기간 선택</button></div>
+      <p class="hint" id="pmHint">위쪽 화살표로 달을 바꿔요.</p>
+      <div class="stack" id="payRangeBox" hidden>
+        <div class="pquick">
+          <button type="button" data-q="thisMonth">이번 달</button>
+          <button type="button" data-q="lastMonth">지난 달</button>
+          <button type="button" data-q="d30">최근 30일</button>
+          <button type="button" data-q="d7">최근 7일</button>
+        </div>
+        <div class="field"><span class="lbl">시작일</span><div class="dsel" id="payFrom"></div></div>
+        <div class="field"><span class="lbl">끝나는 날</span><div class="dsel" id="payTo"></div></div>
+      </div>
+    </div>
     <div class="card">
       <p class="label" id="payTotalLabel"></p>
       <p class="big" id="payTotal">0원</p>
@@ -509,15 +541,6 @@ input[data-time]{cursor:pointer;caret-color:transparent;font-family:var(--font-n
       <label class="field"><span class="lbl">앱 이름 앞에 들어가요</span><input type="text" id="storeIn" maxlength="14" placeholder="예: 행복카페" autocomplete="off"></label>
       <p class="hint" id="storePreview"></p>
     </div>
-    <div class="card stack">
-      <h2>백업</h2>
-      <p class="hint">기록은 이 폰(브라우저)에만 저장돼요. 브라우저 데이터를 지우면 사라지니 가끔 백업 파일을 저장해 두세요.</p>
-      <div class="sheet-actions">
-        <button class="btn primary" id="bkSave" type="button">백업 저장</button>
-        <button class="btn" id="bkLoad" type="button">백업 불러오기</button>
-      </div>
-      <input type="file" id="bkFile" accept=".json,application/json" hidden>
-    </div>
     <div class="card">
       <div class="sec-head"><h2>인원</h2><button class="pill" id="addWorker" type="button">+ 인원 추가</button></div>
       <div id="workers"></div>
@@ -527,6 +550,25 @@ input[data-time]{cursor:pointer;caret-color:transparent;font-family:var(--font-n
       <h2>수당</h2>
       <label class="check"><input type="checkbox" id="juhyuIn"><span>주휴수당 포함<small>주 15시간 이상 근무한 주마다 근무시간에 비례해 최대 하루치(8시간) 시급을 더해요.</small></span></label>
       <label class="check"><input type="checkbox" id="nightIn"><span>야간수당 포함<small>밤 10시부터 아침 6시 사이 근무에 시급의 50%를 더해요. 5인 이상 사업장 기준이에요.</small></span></label>
+    </div>
+    <div class="card stack">
+      <h2>자주 하는 근무</h2>
+      <div class="two">
+        <label class="field"><span class="lbl">시작 시간</span><input class="num" type="text" readonly inputmode="none" placeholder="--:--" data-time="1" id="defStartIn" autocomplete="off"></label>
+        <label class="field"><span class="lbl">휴게시간 (분)</span><input class="num" type="number" id="defBrkIn" inputmode="numeric" min="0" max="600" step="5"></label>
+      </div>
+      <p class="hint">첫 화면에서 알바를 고르면 이 시작 시간부터 한 것으로 기록되고, 휴게시간도 자동으로 들어가요.</p>
+    </div>
+    <div class="card stack">
+      <h2>백업</h2>
+      <p class="hint">기록은 이 폰(브라우저)에만 저장돼요. 7일마다 백업하라는 알림이 떠요.</p>
+      <p class="hint" id="bkLast"></p>
+      <div class="sheet-actions">
+        <button class="btn primary" id="bkSave" type="button">파일로 저장</button>
+        <button class="btn" id="bkShare" type="button" hidden>카톡·드라이브로 보내기</button>
+        <button class="btn" id="bkLoad" type="button">백업 불러오기</button>
+      </div>
+      <input type="file" id="bkFile" accept=".json,application/json,text/plain" hidden>
     </div>
   </section>
 </main>
@@ -552,6 +594,24 @@ input[data-time]{cursor:pointer;caret-color:transparent;font-family:var(--font-n
         <button class="btn" id="offBtn" type="button" hidden>이 날 근무 없음</button>
         <button class="btn danger" id="delBtn" type="button" hidden>이 날 기록 삭제</button>
       </div>
+    </div>
+  </section>
+</div>
+
+<!-- 시급 변경 -->
+<div class="backdrop wbackdrop" id="wBackdrop" hidden>
+  <section class="sheet" id="wSheet" role="dialog" aria-modal="true" aria-labelledby="wTitle" tabindex="-1">
+    <div class="ed-head">
+      <h2 id="wTitle">시급 변경</h2>
+      <button class="icon-btn" id="wClose" type="button" aria-label="닫기">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="stack">
+      <label class="field"><span class="lbl">새 시급 (원)</span><input class="num" type="number" id="wNew" inputmode="numeric" min="0" step="10"></label>
+      <div class="field" id="wDateBox"><span class="lbl">적용 시작일</span><div class="dsel" id="wFrom"></div></div>
+      <p class="preview" id="wPreview"></p>
+      <div class="sheet-actions"><button class="btn primary" id="wSave" type="button">저장</button></div>
     </div>
   </section>
 </div>
@@ -681,9 +741,27 @@ function normWd(o){
   }
   return out;
 }
+function normHist(a){
+  if(!Array.isArray(a)) return [];
+  return a.filter(function(x){ return x && typeof x.from === 'string' && DATE_RE.test(x.from) && Number(x.wage) >= 0; })
+    .map(function(x){ return { from:x.from, wage:Math.round(Number(x.wage)) }; })
+    .sort(function(a, b){ return a.from < b.from ? -1 : a.from > b.from ? 1 : 0; });
+}
+function workerDoc(w){
+  return { name:w.name, wage:w.wage, wage0:w.wage0 || 0, hist:(w.hist || []).map(function(e){ return { from:e.from, wage:e.wage }; }),
+           deduct:w.deduct, c:w.c, order:w.order, linked:!!w.linked };
+}
+function wageOn(w, key){
+  var h = w.hist || [];
+  if(!h.length) return w.wage;
+  var v = w.wage0 || h[0].wage;
+  for(var i = 0; i < h.length; i++){ if(h[i].from <= key) v = h[i].wage; else break; }
+  return v;
+}
 function mkWorker(id, d){
   d = d || {};
   return { id:id, name:(typeof d.name === 'string' ? d.name : ''), wage:Number(d.wage) || 0,
+           wage0:Number(d.wage0) || 0, hist:normHist(d.hist),
            deduct:(RATES[d.deduct] !== undefined ? d.deduct : 'none'), c:Number(d.c) || 0,
            order:Number(d.order) || 0, linked:!!d.linked };
 }
@@ -750,32 +828,54 @@ function minOn(k, wid){
   d.shifts.forEach(function(s){ var c = calcShift(s); if(c) t += c.net; });
   return t;
 }
-function workerStats(w){
-  var daysIn = new Date(viewY, viewM+1, 0).getDate();
-  var dayCnt = 0, totalMin = 0, nightMin = 0, d;
-  for(d = 1; d <= daysIn; d++){
-    var dd = apOf(w.id)[keyOf(viewY, viewM, d)];
-    if(!dd) continue;
-    var any = false;
-    dd.shifts.forEach(function(s){
-      var c = calcShift(s);
-      if(c){ any = true; totalMin += c.net; nightMin += c.night; }
-    });
-    if(any) dayCnt++;
+var payMode = 'month', payFrom = '', payTo = '';
+function periodRange(){
+  if(payMode === 'range' && DATE_RE.test(payFrom) && DATE_RE.test(payTo)){
+    var f = parseKey(payFrom), t = parseKey(payTo);
+    if(f > t){ var x = f; f = t; t = x; }
+    return { from:f, to:t, custom:true };
   }
-  var base = Math.round(totalMin/60 * w.wage);
-  var nightPay = cfg.night ? Math.round(nightMin/60 * w.wage * 0.5) : 0;
+  return { from:new Date(viewY, viewM, 1), to:new Date(viewY, viewM + 1, 0), custom:false };
+}
+function rangeLabel(rg){
+  if(!rg.custom) return (rg.from.getMonth() + 1) + '월';
+  return (rg.from.getMonth() + 1) + '/' + rg.from.getDate() + '~' + (rg.to.getMonth() + 1) + '/' + rg.to.getDate();
+}
+function workerStats(w, rg){
+  rg = rg || periodRange();
+  var from = rg.from, to = rg.to;
+  var dayCnt = 0, totalMin = 0, nightMin = 0, base = 0, nightPay = 0, days = [];
+  var d = new Date(from.getFullYear(), from.getMonth(), from.getDate()), guard = 0;
+  while(d <= to && guard++ < 400){
+    var key = dateKey(d), dd = apOf(w.id)[key];
+    if(dd){
+      var any = false, dm = 0, dn = 0;
+      dd.shifts.forEach(function(s){
+        var c = calcShift(s);
+        if(c){ any = true; dm += c.net; dn += c.night; }
+      });
+      if(any){
+        dayCnt++; totalMin += dm; nightMin += dn;
+        var wg = wageOn(w, key);
+        base += dm / 60 * wg;
+        if(cfg.night) nightPay += dn / 60 * wg * 0.5;
+        days.push({ key:key, min:dm, shifts:dd.shifts.filter(function(s){ return calcShift(s); }) });
+      }
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  base = Math.round(base); nightPay = Math.round(nightPay);
   var juhyu = 0;
-  var first = new Date(viewY, viewM, 1), last = new Date(viewY, viewM, daysIn);
-  var mon = new Date(viewY, viewM, 1 - ((first.getDay() + 6) % 7));
-  while(mon <= last){
+  var mon = new Date(from.getFullYear(), from.getMonth(), from.getDate() - ((from.getDay() + 6) % 7));
+  guard = 0;
+  while(mon <= to && guard++ < 80){
     var sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
     var weekMin = 0;
     for(var i = 0; i < 7; i++){
       weekMin += minOn(dateKey(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i)), w.id);
     }
-    if(weekMin >= 900 && sun.getFullYear() === viewY && sun.getMonth() === viewM){
-      juhyu += Math.round(Math.min(weekMin/60, 40) / 40 * 8 * w.wage);
+    if(weekMin >= 900 && sun >= from && sun <= to){
+      juhyu += Math.round(Math.min(weekMin / 60, 40) / 40 * 8 * wageOn(w, dateKey(sun)));
     }
     mon = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 7);
   }
@@ -783,8 +883,10 @@ function workerStats(w){
   var gross = base + nightPay + juhyu;
   var rate = RATES[w.deduct] || 0;
   var deduct = Math.round(gross * rate);
+  var fk = dateKey(from), tk = dateKey(to), wl = [wageOn(w, fk)];
+  (w.hist || []).forEach(function(e){ if(e.from > fk && e.from <= tk) wl.push(e.wage); });
   return { days:dayCnt, totalMin:totalMin, base:base, nightPay:nightPay, juhyu:juhyu,
-           gross:gross, rate:rate, deduct:deduct, net:gross - deduct };
+           gross:gross, rate:rate, deduct:deduct, net:gross - deduct, dayList:days, wages:wl, from:from, to:to };
 }
 
 function itemsWithStatus(status){
@@ -1027,7 +1129,7 @@ function renderPay(){
     var st = workerStats(me);
     var pre = viewY + '-' + pad(viewM+1), np = 0, m = subOf(me.id);
     Object.keys(m).forEach(function(k){ if(k.slice(0, 7) === pre && m[k].status === 'pending' && m[k].shifts.length) np++; });
-    $('payTotalLabel').textContent = (viewM+1) + '월 예상 급여 (세전)';
+    $('payTotalLabel').textContent = rangeLabel(periodRange()) + ' 예상 급여 (세전)';
     $('payTotal').textContent = fmtWon(st.gross);
     var sub = st.days ? ('근무 ' + st.days + '일 · ' + fmtDur(st.totalMin)) : '이 달에 승인된 근무가 아직 없어요.';
     if(st.rate > 0 && st.gross) sub += ' · 공제 후 ' + fmtWon(st.net);
@@ -1051,14 +1153,17 @@ function renderPay(){
     cards += '<section class="card wpay" style="--wc:' + cv(w) + '">' +
       '<div class="wpay-head"><span class="wname"><i class="dot"></i>' + esc(wname(w)) + '</span>' +
       '<span class="wnet">' + fmtWon(s.net) + '<small>' + (s.rate > 0 ? '공제 후' : '세전') + '</small></span></div>' +
-      '<p class="sub">시급 ' + w.wage.toLocaleString('ko-KR') + '원 · ' + DEDUCT_LABEL[w.deduct] + '</p>' +
-      '<dl class="slip">' + h + '</dl></section>';
+      '<p class="sub">시급 ' + s.wages.map(function(x){ return x.toLocaleString('ko-KR'); }).join(' → ') + '원 · ' + DEDUCT_LABEL[w.deduct] + '</p>' +
+      '<dl class="slip">' + h + '</dl>' +
+      '<div class="wpay-act"><button type="button" class="pill" data-img="' + esc(w.id) + '">사진 저장</button>' +
+      (navigator.share ? '<button type="button" class="pill" data-share="' + esc(w.id) + '">공유</button>' : '') + '</div></section>';
   });
-  $('payTotalLabel').textContent = (viewM+1) + '월 예상 급여 합계 (세전)';
+  var rgL = rangeLabel(periodRange());
+  $('payTotalLabel').textContent = rgL + ' 예상 급여 합계 (세전)';
   $('payTotal').textContent = fmtWon(gross);
-  $('paySub').textContent = cnt ? (cnt + '명 · 근무 ' + fmtDur(mins) + ' · 공제 후 ' + fmtWon(net)) : '이 달에는 아직 승인된 근무가 없어요.';
+  $('paySub').textContent = cnt ? (cnt + '명 · 근무 ' + fmtDur(mins) + ' · 공제 후 ' + fmtWon(net)) : '이 기간에는 아직 승인된 근무가 없어요.';
   $('payCards').innerHTML = cards || '<div class="card empty">승인된 근무가 생기면 인원별 급여가 여기에 나와요.</div>';
-  $('payNote').textContent = '승인한 근무만 계산해요. 주휴수당은 한 주(월~일)에 15시간 이상 일한 주에 붙고, 일요일이 속한 달에 넣어요. 예상 금액이라서 실제 급여는 사업장의 계산 방식과 반올림 기준에 따라 달라질 수 있어요.';
+  $('payNote').textContent = '승인한 근무만 계산해요. 주휴수당은 한 주(월~일)에 15시간 이상 일한 주에 붙고, 그 주의 일요일이 속한 기간에 넣어요. 시급을 바꾼 경우 날짜별로 그날의 시급을 써요. 예상 금액이라서 실제 급여는 사업장의 계산 방식과 반올림 기준에 따라 달라질 수 있어요.';
 }
 
 function fmtShiftLine(s){
@@ -1127,6 +1232,17 @@ function renderApprove(){
   }).join('') || '<p class="empty">승인을 기다리는 근무가 없어요.</p>';
 }
 
+function histHtml(w){
+  var h = w.hist || [];
+  if(!h.length) return '';
+  var rows = '<li>처음 시급 ' + (w.wage0 || h[0].wage).toLocaleString('ko-KR') + '원</li>';
+  h.forEach(function(e, i){
+    var p = e.from.split('-');
+    rows += '<li>' + Number(p[1]) + '월 ' + Number(p[2]) + '일부터 ' + e.wage.toLocaleString('ko-KR') + '원' +
+            '<button type="button" data-act="wdel" data-i="' + i + '" aria-label="이 시급 변경 지우기">×</button></li>';
+  });
+  return '<ul class="whist">' + rows + '</ul>';
+}
 function renderWorkers(){
   $('workers').innerHTML = roster.map(function(w){
     var opts = Object.keys(DEDUCT_LABEL).map(function(k){
@@ -1139,9 +1255,9 @@ function renderWorkers(){
       '<button type="button" class="icon-btn" data-act="del" aria-label="' + esc(wname(w)) + ' 삭제">' +
       '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></div>' +
       '<div class="two">' +
-      '<label class="field"><span class="lbl">시급 (원)</span><input class="num" type="number" data-f="wage" value="' + w.wage + '" inputmode="numeric" min="0" step="10"></label>' +
+      '<div class="field"><span class="lbl">시급</span><div class="wagebox"><b>' + wageOn(w, todayKey()).toLocaleString('ko-KR') + '원</b><button type="button" class="pill" data-act="wage">변경</button></div></div>' +
       '<label class="field"><span class="lbl">공제</span><select data-f="deduct">' + opts + '</select></label>' +
-      '</div></div>';
+      '</div>' + histHtml(w) + '</div>';
   }).join('') || '<p class="empty">아직 인원이 없어요. 알바가 가입을 신청하면 승인 탭에서 추가돼요.</p>';
   $('addWorker').disabled = roster.length >= MAX_WORKERS;
 }
@@ -1166,6 +1282,8 @@ function renderSettings(){
   $('juhyuIn').checked = !!cfg.juhyu;
   $('nightIn').checked = !!cfg.night;
   $('storeIn').value = cfg.storeName || '';
+  $('defStartIn').value = cfg.defStart;
+  $('defBrkIn').value = cfg.defBrk;
   $('storePreview').textContent = '앱 이름: ' + appName();
 }
 
@@ -1315,7 +1433,7 @@ function persistWorker(w){
   rosterTimers[w.id] = setTimeout(function(){
     delete rosterTimers[w.id];
     enqueue(function(){
-      return db.doc('roster/' + w.id).set({ name:w.name, wage:w.wage, deduct:w.deduct, c:w.c, order:w.order, linked:!!w.linked });
+      return db.doc('roster/' + w.id).set(workerDoc(w));
     });
   }, 500);
 }
@@ -1383,12 +1501,12 @@ function renderRows(){
 }
 
 function rowPay(r){
-  var w = wInfo(r.wid), c = calcShift(r);
+  var w = wInfo(r.wid), c = calcShift(r), wg = wageOn(w, selectedKey || todayKey());
   if(c){
-    var night = cfg.night ? c.night/60 * w.wage * 0.5 : 0;
-    var t = fmtDur(c.net) + ' · ' + fmtWon(c.net/60 * w.wage);
+    var night = cfg.night ? c.night/60 * wg * 0.5 : 0;
+    var t = fmtDur(c.net) + ' · ' + fmtWon(c.net/60 * wg);
     if(night > 0) t += ' + 야간 ' + fmtWon(night);
-    return { t:t, net:c.net, pay:c.net/60 * w.wage + night };
+    return { t:t, net:c.net, pay:c.net/60 * wg + night };
   }
   if(r.start && !r.end) return { t:'퇴근 시간을 넣으면 금액이 계산돼요.', net:0, pay:0 };
   if(r.start && r.end && r.start === r.end) return { t:'출근과 퇴근 시간이 같아요.', net:0, pay:0 };
@@ -1666,7 +1784,7 @@ function openQuick(wid){
   $('quickWho').textContent = wname(w);
   $('quickStart').value = s0 ? s0.start : cfg.defStart;
   $('quickEndIn').value = s0 ? s0.end : '';
-  var note = '휴게시간은 ' + (brk ? brk + '분' : '없음') + '으로 기록돼요.';
+  var note = '휴게시간은 ' + (brk ? brk + '분' : '없음') + '으로 기록돼요. 설정에서 바꿀 수 있어요.';
   if(ap && ap.shifts.length > 1) note = '오늘 근무가 여러 개라 이 입력으로 하나로 합쳐져요. ' + note;
   else if(ap) note = '오늘 기록을 고치는 중이에요. ' + note;
   $('quickNote').textContent = note;
@@ -1899,7 +2017,7 @@ $('joinBtn').addEventListener('click', function(){
 /* sheet */
 $('closeSheet').addEventListener('click', closeSheet);
 $('backdrop').addEventListener('click', function(ev){ if(ev.target === $('backdrop')) closeSheet(); });
-document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape'){ if(!$('tBackdrop').hidden) closeTime(); else closeSheet(); } });
+document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape'){ if(!$('tBackdrop').hidden) closeTime(); else if(!$('wBackdrop').hidden) closeWage(); else closeSheet(); } });
 $('saveBtn').addEventListener('click', saveDay);
 $('delBtn').addEventListener('click', deleteDay);
 $('offBtn').addEventListener('click', function(){
@@ -2007,7 +2125,7 @@ $('addWorker').addEventListener('click', function(){
   var w = mkWorker('m' + Math.random().toString(36).slice(2, 9), { name:'알바' + (roster.length + 1), wage:lastWage(), deduct:'none', c:newColor(), order:Date.now(), linked:false });
   roster.push(w);
   renderWorkers(); renderWeekdays();
-  enqueue(function(){ return db.doc('roster/' + w.id).set({ name:w.name, wage:w.wage, deduct:w.deduct, c:w.c, order:w.order, linked:false }); });
+  enqueue(function(){ return db.doc('roster/' + w.id).set(workerDoc(w)); });
 });
 function onWorkerInput(ev){
   var el = ev.target.closest('[data-f]');
@@ -2017,7 +2135,6 @@ function onWorkerInput(ev){
   if(!w) return;
   var f = el.dataset.f;
   if(f === 'name') w.name = el.value.slice(0, 12);
-  else if(f === 'wage') w.wage = Math.max(0, Math.min(1000000, Math.round(Number(el.value) || 0)));
   else if(f === 'deduct' && RATES[el.value] !== undefined) w.deduct = el.value;
   persistWorker(w);
   if(f === 'name') renderWeekdays();
@@ -2025,6 +2142,18 @@ function onWorkerInput(ev){
 $('workers').addEventListener('input', onWorkerInput);
 $('workers').addEventListener('change', onWorkerInput);
 $('workers').addEventListener('click', function(ev){
+  var wb = ev.target.closest('[data-act="wage"]');
+  if(wb){ var wc = wb.closest('[data-wid]'); if(wc) openWage(wc.dataset.wid); return; }
+  var xb = ev.target.closest('[data-act="wdel"]');
+  if(xb){
+    var xc = xb.closest('[data-wid]'), xw = xc ? wById(xc.dataset.wid) : null;
+    if(!xw) return;
+    xw.hist.splice(Number(xb.dataset.i), 1);
+    if(xw.hist.length) xw.wage = xw.hist[xw.hist.length - 1].wage;
+    else { xw.wage = xw.wage0 || xw.wage; xw.wage0 = 0; }
+    persistWorker(xw); renderWorkers(); renderPay(); toast('시급 변경을 지웠어요.');
+    return;
+  }
   var btn = ev.target.closest('[data-act="del"]');
   if(!btn) return;
   var card = btn.closest('[data-wid]');
@@ -2041,6 +2170,219 @@ $('workers').addEventListener('click', function(ev){
   renderWorkers(); renderWeekdays();
   persistWd();
   enqueue(function(){ return db.doc('roster/' + w.id).delete(); });
+});
+
+
+/* ---------- date selects ---------- */
+function fillDateSel(box, key){
+  var d = parseKey(key), y0 = new Date().getFullYear(), h = '';
+  var ys = '', ms = '', i;
+  for(i = y0 - 3; i <= y0 + 1; i++) ys += '<option value="' + i + '"' + (i === d.getFullYear() ? ' selected' : '') + '>' + i + '년</option>';
+  for(i = 1; i <= 12; i++) ms += '<option value="' + i + '"' + (i === d.getMonth() + 1 ? ' selected' : '') + '>' + i + '월</option>';
+  box.innerHTML = '<select data-p="y" aria-label="연도">' + ys + '</select><select data-p="m" aria-label="월">' + ms + '</select><select data-p="d" aria-label="일"></select>';
+  fillDays(box, d.getDate());
+}
+function fillDays(box, day){
+  var y = Number(box.querySelector('[data-p="y"]').value), m = Number(box.querySelector('[data-p="m"]').value);
+  var n = new Date(y, m, 0).getDate(), h = '';
+  day = Math.min(day, n);
+  for(var i = 1; i <= n; i++) h += '<option value="' + i + '"' + (i === day ? ' selected' : '') + '>' + i + '일</option>';
+  box.querySelector('[data-p="d"]').innerHTML = h;
+}
+function readDateSel(box){
+  return keyOf(Number(box.querySelector('[data-p="y"]').value), Number(box.querySelector('[data-p="m"]').value) - 1, Number(box.querySelector('[data-p="d"]').value));
+}
+document.addEventListener('change', function(ev){
+  var sel = ev.target;
+  if(!sel.closest || !sel.dataset || !sel.dataset.p) return;
+  var box = sel.closest('.dsel');
+  if(!box) return;
+  if(sel.dataset.p !== 'd') fillDays(box, Number(box.querySelector('[data-p="d"]').value) || 1);
+  if(box.id === 'wFrom') updateWagePreview();
+  else if(box.id === 'payFrom' || box.id === 'payTo') onPayDates();
+});
+
+/* ---------- wage change ---------- */
+var wageWid = null;
+function openWage(wid){
+  var w = wById(wid);
+  if(!w) return;
+  wageWid = wid;
+  $('wTitle').textContent = wname(w) + ' 시급 변경';
+  $('wNew').value = wageOn(w, todayKey());
+  var needDate = hasRecords(wid) || (w.hist && w.hist.length);
+  $('wDateBox').hidden = !needDate;
+  fillDateSel($('wFrom'), todayKey());
+  updateWagePreview();
+  $('wBackdrop').hidden = false;
+  $('wSheet').scrollTop = 0;
+  $('wSheet').focus();
+}
+function closeWage(){ $('wBackdrop').hidden = true; wageWid = null; }
+function updateWagePreview(){
+  var w = wageWid ? wById(wageWid) : null;
+  if(!w) return;
+  var v = Math.max(0, Math.min(1000000, Math.round(Number($('wNew').value) || 0)));
+  if($('wDateBox').hidden){ $('wPreview').textContent = v ? '시급을 ' + v.toLocaleString('ko-KR') + '원으로 해요.' : ''; return; }
+  var from = readDateSel($('wFrom')), p = from.split('-');
+  var before = wageOn(w, dateKey(new Date(parseKey(from).getTime() - 86400000)));
+  $('wPreview').textContent = v ? (Number(p[1]) + '월 ' + Number(p[2]) + '일부터 ' + v.toLocaleString('ko-KR') + '원으로 계산해요. 그 전 날짜는 ' + before.toLocaleString('ko-KR') + '원 그대로예요.') : '';
+}
+$('wNew').addEventListener('input', updateWagePreview);
+$('wClose').addEventListener('click', closeWage);
+$('wBackdrop').addEventListener('click', function(ev){ if(ev.target === $('wBackdrop')) closeWage(); });
+$('wSave').addEventListener('click', function(){
+  var w = wageWid ? wById(wageWid) : null;
+  if(!w) return;
+  var v = Math.max(0, Math.min(1000000, Math.round(Number($('wNew').value) || 0)));
+  if(!v){ toast('시급을 넣어 주세요.'); return; }
+  if($('wDateBox').hidden){
+    w.wage = v;
+  } else {
+    var from = readDateSel($('wFrom'));
+    if(!w.hist) w.hist = [];
+    if(!w.hist.length) w.wage0 = w.wage;
+    w.hist = w.hist.filter(function(e){ return e.from !== from; });
+    w.hist.push({ from:from, wage:v });
+    w.hist.sort(function(a, b){ return a.from < b.from ? -1 : a.from > b.from ? 1 : 0; });
+    w.wage = w.hist[w.hist.length - 1].wage;
+  }
+  persistWorker(w);
+  closeWage();
+  renderWorkers(); renderPay();
+  toast('시급을 바꿨어요.');
+});
+
+/* ---------- pay period ---------- */
+function syncPayUI(){
+  var rg = payMode === 'range';
+  $('pmMonth').setAttribute('aria-pressed', String(!rg));
+  $('pmRange').setAttribute('aria-pressed', String(rg));
+  $('payRangeBox').hidden = !rg;
+  $('pmHint').hidden = rg;
+  if(rg){ fillDateSel($('payFrom'), payFrom); fillDateSel($('payTo'), payTo); }
+}
+function setRange(f, t){ payFrom = dateKey(f); payTo = dateKey(t); syncPayUI(); renderPay(); }
+function onPayDates(){
+  var f = readDateSel($('payFrom')), t = readDateSel($('payTo'));
+  if(f > t){ toast('끝나는 날이 시작일보다 빨라서 시작일로 맞췄어요.'); t = f; fillDateSel($('payTo'), t); }
+  payFrom = f; payTo = t;
+  renderPay();
+}
+$('pmMonth').addEventListener('click', function(){ payMode = 'month'; syncPayUI(); renderPay(); renderHeader(); });
+$('pmRange').addEventListener('click', function(){
+  payMode = 'range';
+  if(!payFrom || !payTo){ var n = new Date(); setRange(new Date(n.getFullYear(), n.getMonth(), n.getDate() - 29), n); }
+  else { syncPayUI(); renderPay(); }
+});
+$('payRangeBox').addEventListener('click', function(ev){
+  var b = ev.target.closest('[data-q]');
+  if(!b) return;
+  var n = new Date(), q = b.dataset.q;
+  if(q === 'thisMonth') setRange(new Date(n.getFullYear(), n.getMonth(), 1), new Date(n.getFullYear(), n.getMonth() + 1, 0));
+  else if(q === 'lastMonth') setRange(new Date(n.getFullYear(), n.getMonth() - 1, 1), new Date(n.getFullYear(), n.getMonth(), 0));
+  else if(q === 'd30') setRange(new Date(n.getFullYear(), n.getMonth(), n.getDate() - 29), n);
+  else if(q === 'd7') setRange(new Date(n.getFullYear(), n.getMonth(), n.getDate() - 6), n);
+});
+
+/* ---------- pay slip image ---------- */
+var FF = '"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic","IBM Plex Sans KR",sans-serif';
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function slipBlob(w, rg){
+  var s = workerStats(w, rg);
+  var W = 1080, P = 56, IN = 48, rowH = 66, dayH = 56;
+  var rows = [['근무일수', s.days + '일'], ['근무시간', s.totalMin ? fmtDur(s.totalMin) : '0시간'], ['기본급', fmtWon(s.base)]];
+  if(cfg.night) rows.push(['야간수당', fmtWon(s.nightPay)]);
+  if(cfg.juhyu) rows.push(['주휴수당', fmtWon(s.juhyu)]);
+  rows.push(['세전 합계', fmtWon(s.gross), 'total']);
+  if(s.rate > 0) rows.push([DEDUCT_LABEL[w.deduct], '−' + fmtWon(s.deduct), 'minus']);
+  var days = s.dayList;
+  var H = 60 + 140 + 250 + 70 + rows.length * rowH + 60 + (days.length ? 90 + days.length * dayH + 20 : 0) + 140;
+  var cv2 = document.createElement('canvas');
+  cv2.width = W; cv2.height = H;
+  var ctx = cv2.getContext('2d');
+  var accent = getComputedStyle(document.body).getPropertyValue('--c' + (((w.c % PALETTE) + PALETTE) % PALETTE)).trim() || '#0a6b54';
+  ctx.fillStyle = '#eef1f4'; ctx.fillRect(0, 0, W, H);
+  var x0 = P, cw = W - P * 2, y = 60;
+  ctx.fillStyle = '#ffffff'; roundRect(ctx, x0, y, cw, H - 120, 36); ctx.fill();
+  ctx.fillStyle = accent; ctx.fillRect(x0 + 36, y + 36, 14, 70);
+  ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#6b7684'; ctx.font = '500 32px ' + FF; ctx.fillText(appName() + ' · 급여 명세(예상)', x0 + 72, y + 64);
+  ctx.fillStyle = '#111827'; ctx.font = '700 52px ' + FF; ctx.fillText(wname(w), x0 + 72, y + 128);
+  y += 190;
+  var fk = s.from, tk = s.to;
+  ctx.fillStyle = '#6b7684'; ctx.font = '500 34px ' + FF;
+  ctx.fillText(fk.getFullYear() + '.' + pad(fk.getMonth() + 1) + '.' + pad(fk.getDate()) + ' ~ ' + tk.getFullYear() + '.' + pad(tk.getMonth() + 1) + '.' + pad(tk.getDate()), x0 + IN, y);
+  y += 100;
+  ctx.fillStyle = accent; ctx.font = '700 104px ' + FF; ctx.fillText(fmtWon(s.net), x0 + IN, y);
+  y += 54;
+  ctx.fillStyle = '#6b7684'; ctx.font = '500 32px ' + FF;
+  ctx.fillText((s.rate > 0 ? '공제 후 금액' : '세전 금액') + ' · 시급 ' + s.wages.map(function(v){ return v.toLocaleString('ko-KR'); }).join(' → ') + '원', x0 + IN, y);
+  y += 50;
+  ctx.fillStyle = '#e5e8ec'; ctx.fillRect(x0 + IN, y, cw - IN * 2, 3);
+  y += 20;
+  rows.forEach(function(r){
+    y += rowH;
+    var tot = r[2] === 'total';
+    ctx.textAlign = 'left'; ctx.fillStyle = tot ? '#111827' : '#6b7684'; ctx.font = (tot ? '700 ' : '500 ') + '36px ' + FF;
+    ctx.fillText(r[0], x0 + IN, y - 18);
+    ctx.textAlign = 'right'; ctx.fillStyle = r[2] === 'minus' ? '#d14343' : '#111827'; ctx.font = (tot ? '700 ' : '600 ') + '38px ' + FF;
+    ctx.fillText(r[1], x0 + cw - IN, y - 18);
+  });
+  y += 30;
+  if(days.length){
+    ctx.fillStyle = '#e5e8ec'; ctx.fillRect(x0 + IN, y, cw - IN * 2, 3);
+    y += 64;
+    ctx.textAlign = 'left'; ctx.fillStyle = '#111827'; ctx.font = '700 36px ' + FF;
+    ctx.fillText('날짜별 근무', x0 + IN, y);
+    y += 14;
+    days.forEach(function(dd){
+      y += dayH;
+      var dt = parseKey(dd.key);
+      ctx.textAlign = 'left'; ctx.fillStyle = '#374151'; ctx.font = '500 32px ' + FF;
+      ctx.fillText((dt.getMonth() + 1) + '/' + dt.getDate() + ' (' + DOW[dt.getDay()] + ')', x0 + IN, y - 14);
+      ctx.fillStyle = '#6b7684';
+      ctx.fillText(dd.shifts.map(function(sh){ return shortT(sh.start) + '–' + shortT(sh.end); }).join(', '), x0 + IN + 230, y - 14);
+      ctx.textAlign = 'right'; ctx.fillStyle = '#111827'; ctx.font = '600 32px ' + FF;
+      ctx.fillText(fmtDur(dd.min), x0 + cw - IN, y - 14);
+    });
+  }
+  ctx.textAlign = 'left'; ctx.fillStyle = '#9aa3ae'; ctx.font = '500 26px ' + FF;
+  ctx.fillText('예상 금액이며 실제 지급액과 다를 수 있어요.', x0 + IN, H - 60 - 40);
+  return new Promise(function(res){ cv2.toBlob(function(b){ res(b); }, 'image/png'); });
+}
+function slipName(w, rg){
+  return wname(w) + '_' + dateKey(rg.from).replace(/-/g, '') + '-' + dateKey(rg.to).replace(/-/g, '') + '.png';
+}
+$('payCards').addEventListener('click', function(ev){
+  var bi = ev.target.closest('[data-img]'), bs = ev.target.closest('[data-share]');
+  var b = bi || bs;
+  if(!b) return;
+  var w = wById(bi ? bi.dataset.img : bs.dataset.share);
+  if(!w) return;
+  var rg = periodRange();
+  b.disabled = true;
+  slipBlob(w, rg).then(function(blob){
+    b.disabled = false;
+    if(!blob){ toast('사진을 만들지 못했어요.'); return; }
+    var name = slipName(w, rg);
+    if(bs){
+      var file = new File([blob], name, { type:'image/png' });
+      if(navigator.canShare && navigator.canShare({ files:[file] })){
+        navigator.share({ files:[file], title:name }).catch(function(){});
+      } else toast('이 브라우저는 공유를 지원하지 않아요. 사진 저장을 눌러 주세요.');
+      return;
+    }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    toast('사진을 저장했어요.');
+  });
 });
 
 /* settings: weekdays */
@@ -2064,6 +2406,19 @@ function onStoreInput(){
   renderHeader();
 }
 $('storeIn').addEventListener('input', onStoreInput);
+function onDefStart(){
+  var v = $('defStartIn').value;
+  if(!/^\d{2}:\d{2}$/.test(v)) return;
+  cfg.defStart = v;
+  var e = (toMin(v) + 240) % 1440;
+  cfg.defEnd = pad(Math.floor(e / 60)) + ':' + pad(e % 60);
+  persistCfg();
+}
+$('defStartIn').addEventListener('input', onDefStart);
+$('defStartIn').addEventListener('change', onDefStart);
+function onDefBrk(){ cfg.defBrk = clampBrk($('defBrkIn').value); persistCfg(); }
+$('defBrkIn').addEventListener('input', onDefBrk);
+$('defBrkIn').addEventListener('change', onDefBrk);
 
 /* time picker: every time field opens this sheet wherever it is tapped */
 var tEl = null, tH = 18, tM = 0;
@@ -2183,15 +2538,66 @@ initStore();
 <script>
 (function(){
   var $ = function(i){ return document.getElementById(i); };
-  $('bkSave').addEventListener('click', function(){
+  var LK = 'albaPayCal.lastBackup', BK = 'albaPayCal.base', SK = 'albaPayCal.snooze';
+  var DAY = 86400000, PERIOD = 7 * DAY;
+  function get(k){ try{ return Number(localStorage.getItem(k)) || 0; }catch(e){ return 0; } }
+  function put(k, v){ try{ localStorage.setItem(k, String(v)); }catch(e){} }
+  if(!get(BK)) put(BK, Date.now());
+  function ref(){ return get(LK) || get(BK); }
+  function say(msg){
+    var t = $('toast'); if(!t) return;
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(say.t); say.t = setTimeout(function(){ t.hidden = true; }, 2800);
+  }
+  function fname(){
     var d = new Date(), p = function(n){ return (n < 10 ? '0' : '') + n; };
-    var name = 'alba-backup-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '.json';
+    return 'alba-backup-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '.json';
+  }
+  function lastText(){
+    var l = get(LK);
+    if(!l) return '아직 백업한 적이 없어요.';
+    var d = new Date(l), days = Math.floor((Date.now() - l) / DAY);
+    return '마지막 백업: ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일' + (days > 0 ? ' (' + days + '일 전)' : ' (오늘)');
+  }
+  function refresh(){ var el = $('bkLast'); if(el) el.textContent = lastText(); }
+  function marked(){ put(LK, Date.now()); put(SK, 0); refresh(); }
+  function doSave(){
     var blob = new Blob([window.__alba.exportJson()], { type:'application/json' });
     var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = name;
+    a.href = URL.createObjectURL(blob); a.download = fname();
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
-  });
+    marked(); say('백업 파일을 저장했어요.');
+  }
+  function mkFile(type){ return new File([window.__alba.exportJson()], fname(), { type:type }); }
+  function doShare(){
+    var f = mkFile('application/json');
+    if(!(navigator.canShare && navigator.canShare({ files:[f] }))){
+      f = mkFile('text/plain');
+      if(!(navigator.canShare && navigator.canShare({ files:[f] }))){ say('이 브라우저는 공유를 지원하지 않아요. 파일로 저장을 눌러 주세요.'); return; }
+    }
+    navigator.share({ files:[f], title:f.name }).then(function(){ marked(); closePop(); say('공유했어요.'); }).catch(function(){});
+  }
+  function closePop(){ var p = $('bkPop'); if(p) p.remove(); }
+  function showPop(){
+    if($('bkPop')) return;
+    var days = Math.max(1, Math.floor((Date.now() - ref()) / DAY));
+    var d = document.createElement('div');
+    d.className = 'backdrop'; d.id = 'bkPop'; d.style.zIndex = '60';
+    d.innerHTML = '<section class="sheet" role="dialog" aria-modal="true" aria-labelledby="bkPopT" tabindex="-1">' +
+      '<div class="ed-head"><h2 id="bkPopT">백업할 때가 됐어요</h2></div>' +
+      '<div class="stack"><p style="margin:0;line-height:1.6">마지막 백업 후 ' + days + '일이 지났어요. 폰을 바꾸거나 브라우저 데이터를 지우면 기록이 사라져요.</p>' +
+      '<div class="sheet-actions"><button class="btn primary" id="bkPopSave" type="button">파일로 저장</button>' +
+      (navigator.share ? '<button class="btn" id="bkPopShare" type="button">카톡·드라이브로 보내기</button>' : '') +
+      '<button class="btn" id="bkPopLater" type="button">나중에</button></div></div></section>';
+    document.body.appendChild(d);
+    $('bkPopSave').addEventListener('click', function(){ doSave(); closePop(); });
+    if($('bkPopShare')) $('bkPopShare').addEventListener('click', doShare);
+    $('bkPopLater').addEventListener('click', function(){ put(SK, Date.now() + DAY); closePop(); });
+  }
+  $('bkSave').addEventListener('click', doSave);
+  if(navigator.share) $('bkShare').hidden = false;
+  $('bkShare').addEventListener('click', doShare);
   $('bkLoad').addEventListener('click', function(){ $('bkFile').click(); });
   $('bkFile').addEventListener('change', function(){
     var f = $('bkFile').files[0];
@@ -2204,6 +2610,9 @@ initStore();
     };
     r.readAsText(f);
   });
+  refresh();
+  window.__bkCheck = function(){ if(Date.now() - ref() >= PERIOD && Date.now() > get(SK)) showPop(); };
+  setTimeout(window.__bkCheck, 900);
 })();
 </script>
 <script>
