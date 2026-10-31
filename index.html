@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="app-build" content="20261031191212">
+<meta name="app-build" content="20261031194321">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
 <link rel="manifest" href="manifest.json">
@@ -2779,6 +2779,21 @@ if('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
     });
     document.getElementById('instLater').addEventListener('click', function(){ snooze(); close(); });
   }
+  var kakao = /KAKAOTALK/i.test(navigator.userAgent);
+  function kakaoPopup(){
+    if(snoozed() || document.getElementById('instPop')) return;
+    var u = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href.split('#')[0]);
+    var d = document.createElement('div');
+    d.className = 'backdrop'; d.id = 'instPop'; d.style.zIndex = '65';
+    d.innerHTML = '<section class="sheet" role="dialog" aria-modal="true" aria-labelledby="instT" tabindex="-1">' +
+      '<div class="ed-head"><h2 id="instT">다른 브라우저로 열어 주세요</h2></div>' +
+      '<div class="stack"><p style="margin:0;line-height:1.6">카카오톡 안에서는 앱을 설치할 수 없어요. ' + (ios ? '사파리' : '크롬') + '로 열면 설치할 수 있고, 기록도 그쪽에 저장돼요.</p>' +
+      '<div class="sheet-actions"><a class="btn primary" id="kkGo" href="' + u + '" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none">브라우저로 열기</a>' +
+      '<button class="btn" id="instLater" type="button">그냥 쓰기</button></div></div></section>';
+    document.body.appendChild(d);
+    document.getElementById('instLater').addEventListener('click', function(){ snooze(); close(); });
+  }
+  if(kakao){ setTimeout(kakaoPopup, 800); return; }
   window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferred = e; setTimeout(popup, 1200); });
   window.addEventListener('appinstalled', function(){ deferred = null; close(); });
   if(ios) setTimeout(popup, 2500);
