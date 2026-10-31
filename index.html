@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="app-build" content="20261031183440">
+<meta name="app-build" content="20261031191212">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
 <link rel="manifest" href="manifest.json">
@@ -548,9 +548,15 @@ input[data-time]{cursor:pointer;caret-color:transparent;font-family:var(--font-n
       <p class="hint" style="margin-top:10px">알바 이름과 시급을 추가해 두면 첫 화면에 알바 목록으로 나와요.</p>
     </div>
     <div class="card stack">
+      <h2>정해진 근무일</h2>
+      <p class="hint">요일마다 누가 나오기로 했는지 골라요. 주휴수당은 정해진 요일을 <b>빠짐없이 나왔을 때</b>만 붙어요. 쉬는 날로 표시한 "없음" 날짜는 결근으로 안 쳐요. 아무 요일도 안 고른 알바는 주 15시간 이상이면 붙여요.</p>
+      <div id="weekdays"></div>
+    </div>
+    <div class="card stack">
       <h2>수당</h2>
-      <label class="check"><input type="checkbox" id="juhyuIn"><span>주휴수당 포함<small>주 15시간 이상 근무한 주마다 근무시간에 비례해 최대 하루치(8시간) 시급을 더해요.</small></span></label>
+      <label class="check"><input type="checkbox" id="juhyuIn"><span>주휴수당 포함<small>주 15시간 이상 근무하고 정해진 근무일을 빠짐없이 나온 주마다, 근무시간에 비례해 최대 하루치(8시간) 시급을 더해요.</small></span></label>
       <label class="check"><input type="checkbox" id="nightIn"><span>야간수당 포함<small>밤 10시부터 아침 6시 사이 근무에 시급의 50%를 더해요. 5인 이상 사업장 기준이에요.</small></span></label>
+      <label class="check"><input type="checkbox" id="overtimeIn"><span>연장수당 포함<small>5인 이상 사업장 기준이에요. 하루 8시간을 넘게 일한 시간, 그리고 한 주(월~일) 40시간을 넘게 일한 시간에 시급의 50%를 더 줘요. 기본급(100%)에 가산 50%가 붙어 150%가 돼요. 하루 초과와 주 초과가 겹치는 시간은 한 번만 계산하고, 휴게시간은 근무시간에서 빠져요. 야간 근무와 겹치면 야간수당과 연장수당이 둘 다 붙어요.</small></span></label>
     </div>
     <div class="card stack">
       <h2>자주 하는 근무</h2>
@@ -732,10 +738,11 @@ var draft = null;
 var rosterTimers = {}, cfgTimer = null, wdTimer = null, toastTimer = null, renderTimer = null;
 
 function normCfg(d){
-  var c = { juhyu:true, night:false, defStart:'18:00', defEnd:'22:00', defBrk:0, storeName:'' };
+  var c = { juhyu:true, night:false, overtime:false, defStart:'18:00', defEnd:'22:00', defBrk:0, storeName:'' };
   if(!d || typeof d !== 'object') return c;
   if(typeof d.juhyu === 'boolean') c.juhyu = d.juhyu;
   if(typeof d.night === 'boolean') c.night = d.night;
+  if(typeof d.overtime === 'boolean') c.overtime = d.overtime;
   if(typeof d.defStart === 'string' && d.defStart) c.defStart = d.defStart;
   if(typeof d.defEnd === 'string' && d.defEnd) c.defEnd = d.defEnd;
   if(typeof d.defBrk === 'number') c.defBrk = clampBrk(d.defBrk);
@@ -841,6 +848,24 @@ function minOn(k, wid){
   d.shifts.forEach(function(s){ var c = calcShift(s); if(c) t += c.net; });
   return t;
 }
+function schedDays(w){
+  var out = [];
+  for(var wd = 0; wd < 7; wd++) if((weekdayDefaults[wd] || []).indexOf(w.id) >= 0) out.push(wd);
+  return out;
+}
+/* null = 정해진 근무일이 없어서 판단 불가, true = 빠짐없이 나옴, false = 결근 있음 */
+function weekComplete(w, mon){
+  var sd = schedDays(w);
+  if(!sd.length) return null;
+  for(var i = 0; i < 7; i++){
+    var dt = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
+    if(sd.indexOf(dt.getDay()) < 0) continue;
+    var key = dateKey(dt);
+    if(offDays[key]) continue;
+    if(minOn(key, w.id) <= 0) return false;
+  }
+  return true;
+}
 var payMode = 'month', payFrom = '', payTo = '';
 function periodRange(){
   if(payMode === 'range' && DATE_RE.test(payFrom) && DATE_RE.test(payTo)){
@@ -857,7 +882,7 @@ function rangeLabel(rg){
 function workerStats(w, rg){
   rg = rg || periodRange();
   var from = rg.from, to = rg.to;
-  var dayCnt = 0, totalMin = 0, nightMin = 0, base = 0, nightPay = 0, days = [];
+  var dayCnt = 0, totalMin = 0, nightMin = 0, base = 0, nightPay = 0, otMin = 0, otPay = 0, days = [];
   var d = new Date(from.getFullYear(), from.getMonth(), from.getDate()), guard = 0;
   while(d <= to && guard++ < 400){
     var key = dateKey(d), dd = apOf(w.id)[key];
@@ -872,34 +897,42 @@ function workerStats(w, rg){
         var wg = wageOn(w, key);
         base += dm / 60 * wg;
         if(cfg.night) nightPay += dn / 60 * wg * 0.5;
+        if(cfg.overtime && dm > 480){ otMin += dm - 480; otPay += (dm - 480) / 60 * wg * 0.5; }
         days.push({ key:key, min:dm, shifts:dd.shifts.filter(function(s){ return calcShift(s); }) });
       }
     }
     d.setDate(d.getDate() + 1);
   }
   base = Math.round(base); nightPay = Math.round(nightPay);
-  var juhyu = 0;
+  var juhyu = 0, juhyuMiss = 0;
   var mon = new Date(from.getFullYear(), from.getMonth(), from.getDate() - ((from.getDay() + 6) % 7));
   guard = 0;
   while(mon <= to && guard++ < 80){
     var sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
-    var weekMin = 0;
+    var weekMin = 0, weekReg = 0;
     for(var i = 0; i < 7; i++){
-      weekMin += minOn(dateKey(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i)), w.id);
+      var dmin = minOn(dateKey(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i)), w.id);
+      weekMin += dmin; weekReg += Math.min(dmin, 480);
+    }
+    if(cfg.overtime && sun >= from && sun <= to){
+      var ex = Math.max(0, weekReg - 2400);
+      if(ex){ otMin += ex; otPay += ex / 60 * wageOn(w, dateKey(sun)) * 0.5; }
     }
     if(weekMin >= 900 && sun >= from && sun <= to){
-      juhyu += Math.round(Math.min(weekMin / 60, 40) / 40 * 8 * wageOn(w, dateKey(sun)));
+      if(weekComplete(w, mon) === false) juhyuMiss++;
+      else juhyu += Math.round(Math.min(weekMin / 60, 40) / 40 * 8 * wageOn(w, dateKey(sun)));
     }
     mon = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 7);
   }
   if(!cfg.juhyu) juhyu = 0;
-  var gross = base + nightPay + juhyu;
+  otPay = Math.round(otPay);
+  var gross = base + nightPay + juhyu + otPay;
   var rate = RATES[w.deduct] || 0;
   var deduct = Math.round(gross * rate);
   var fk = dateKey(from), tk = dateKey(to), wl = [wageOn(w, fk)];
   (w.hist || []).forEach(function(e){ if(e.from > fk && e.from <= tk) wl.push(e.wage); });
-  return { days:dayCnt, totalMin:totalMin, base:base, nightPay:nightPay, juhyu:juhyu,
-           gross:gross, rate:rate, deduct:deduct, net:gross - deduct, dayList:days, wages:wl, from:from, to:to };
+  return { days:dayCnt, totalMin:totalMin, base:base, nightPay:nightPay, juhyu:juhyu, otPay:otPay, otMin:otMin,
+           gross:gross, rate:rate, deduct:deduct, net:gross - deduct, dayList:days, wages:wl, from:from, to:to, juhyuMiss:(cfg.juhyu ? juhyuMiss : 0) };
 }
 
 function itemsWithStatus(status){
@@ -1160,7 +1193,8 @@ function renderPay(){
     var h = slipRow('근무일수', s.days + '일') + slipRow('근무시간', s.totalMin ? fmtDur(s.totalMin) : '0시간');
     h += slipRow('기본급', fmtWon(s.base));
     if(cfg.night) h += slipRow('야간수당', fmtWon(s.nightPay));
-    if(cfg.juhyu) h += slipRow('주휴수당', fmtWon(s.juhyu));
+    if(cfg.overtime) h += slipRow('연장수당', fmtWon(s.otPay) + (s.otMin ? ' (' + fmtDur(s.otMin) + ')' : ''));
+    if(cfg.juhyu) h += slipRow('주휴수당', fmtWon(s.juhyu) + (s.juhyuMiss ? ' (결근 ' + s.juhyuMiss + '주 제외)' : ''));
     h += slipRow('세전 합계', fmtWon(s.gross), 'total');
     if(s.rate > 0) h += slipRow(DEDUCT_LABEL[w.deduct], '−' + fmtWon(s.deduct), 'minus');
     cards += '<section class="card wpay" style="--wc:' + cv(w) + '">' +
@@ -1176,7 +1210,7 @@ function renderPay(){
   $('payTotal').textContent = fmtWon(gross);
   $('paySub').textContent = cnt ? (cnt + '명 · 근무 ' + fmtDur(mins) + ' · 공제 후 ' + fmtWon(net)) : '이 기간에는 아직 승인된 근무가 없어요.';
   $('payCards').innerHTML = cards || '<div class="card empty">승인된 근무가 생기면 인원별 급여가 여기에 나와요.</div>';
-  $('payNote').textContent = '승인한 근무만 계산해요. 주휴수당은 한 주(월~일)에 15시간 이상 일한 주에 붙고, 그 주의 일요일이 속한 기간에 넣어요. 시급을 바꾼 경우 날짜별로 그날의 시급을 써요. 예상 금액이라서 실제 급여는 사업장의 계산 방식과 반올림 기준에 따라 달라질 수 있어요.';
+  $('payNote').textContent = '승인한 근무만 계산해요. 주휴수당은 한 주(월~일)에 15시간 이상 일하고 정해진 근무일을 빠짐없이 나온 주에 붙고(정해진 근무일이 없으면 15시간만 봐요), 그 주의 일요일이 속한 기간에 넣어요. 연장수당은 하루 8시간·주 40시간을 넘긴 시간에 시급의 50%를 더해요. 시급을 바꾼 경우 날짜별로 그날의 시급을 써요. 예상 금액이라서 실제 급여는 사업장의 계산 방식과 반올림 기준에 따라 달라질 수 있어요.';
 }
 
 function fmtShiftLine(s){
@@ -1291,9 +1325,10 @@ function renderWeekdays(){
 }
 
 function renderSettings(){
-  renderWorkers();
+  renderWorkers(); renderWeekdays();
   $('juhyuIn').checked = !!cfg.juhyu;
   $('nightIn').checked = !!cfg.night;
+  $('overtimeIn').checked = !!cfg.overtime;
   $('storeIn').value = cfg.storeName || '';
   $('defStartIn').value = cfg.defStart;
   $('defBrkIn').value = cfg.defBrk;
@@ -2322,7 +2357,8 @@ function slipBlob(w, rg){
   var W = 1080, P = 56, IN = 48, rowH = 66, dayH = 56;
   var rows = [['근무일수', s.days + '일'], ['근무시간', s.totalMin ? fmtDur(s.totalMin) : '0시간'], ['기본급', fmtWon(s.base)]];
   if(cfg.night) rows.push(['야간수당', fmtWon(s.nightPay)]);
-  if(cfg.juhyu) rows.push(['주휴수당', fmtWon(s.juhyu)]);
+  if(cfg.overtime) rows.push(['연장수당', fmtWon(s.otPay) + (s.otMin ? ' (' + fmtDur(s.otMin) + ')' : '')]);
+  if(cfg.juhyu) rows.push(['주휴수당', fmtWon(s.juhyu) + (s.juhyuMiss ? ' (결근 ' + s.juhyuMiss + '주 제외)' : '')]);
   rows.push(['세전 합계', fmtWon(s.gross), 'total']);
   if(s.rate > 0) rows.push([DEDUCT_LABEL[w.deduct], '−' + fmtWon(s.deduct), 'minus']);
   var days = s.dayList;
@@ -2429,16 +2465,26 @@ $('sLater').addEventListener('click', function(){
 });
 
 /* settings: weekdays */
+$('weekdays').addEventListener('click', function(ev){
+  var b = ev.target.closest('[data-wid]');
+  if(!b || !b.parentNode || b.parentNode.dataset.wd === undefined) return;
+  var wd = Number(b.parentNode.dataset.wd), id = b.dataset.wid;
+  var arr = weekdayDefaults[wd] || (weekdayDefaults[wd] = []);
+  var i = arr.indexOf(id);
+  if(i >= 0) arr.splice(i, 1); else arr.push(id);
+  renderWeekdays(); persistWd(); renderPay();
+});
 
 
 /* settings: allowances and default shift */
 function onToggleInput(){
   cfg.juhyu = $('juhyuIn').checked;
   cfg.night = $('nightIn').checked;
+  cfg.overtime = $('overtimeIn').checked;
   persistCfg();
   renderPay();
 }
-['juhyuIn','nightIn'].forEach(function(id){
+['juhyuIn','nightIn','overtimeIn'].forEach(function(id){
   $(id).addEventListener('input', onToggleInput);
   $(id).addEventListener('change', onToggleInput);
 });
