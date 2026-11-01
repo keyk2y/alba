@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="app-build" content="20261031194321">
+<meta name="app-build" content="20261101195010">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
 <link rel="manifest" href="manifest.json">
@@ -402,6 +402,11 @@ input[data-time]{cursor:pointer;caret-color:transparent;font-family:var(--font-n
 .wpay-act{display:flex;gap:8px;margin-top:12px}
 .wpay-act .pill{flex:1;min-height:44px}
 .wbackdrop{z-index:40}
+.lrow{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.lrow:first-child{border-top:0}
+.lrow .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow .nm small{color:var(--muted);font-weight:500;margin-left:6px}
+.lrow .btn{height:40px;padding:0 12px;font-size:14px}
 .tbackdrop{z-index:50}
 .tbig{margin:0;text-align:center;font-family:var(--font-num);font-size:36px;font-weight:600;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
 .tdisp{display:flex;align-items:center;justify-content:center;gap:10px}
@@ -547,6 +552,11 @@ input[data-time]{cursor:pointer;caret-color:transparent;font-family:var(--font-n
       <div id="workers"></div>
       <p class="hint" style="margin-top:10px">알바 이름과 시급을 추가해 두면 첫 화면에 알바 목록으로 나와요.</p>
     </div>
+    <div class="card stack" id="leftCard" hidden>
+      <h2>퇴사한 인원</h2>
+      <p class="hint">목록에서만 빠지고 지난 근무 기록은 남아 있어요. 그 달 정산을 볼 때 그대로 나와요.</p>
+      <div id="leftList"></div>
+    </div>
     <div class="card stack">
       <h2>정해진 근무일</h2>
       <p class="hint">요일마다 누가 나오기로 했는지 골라요. 주휴수당은 정해진 요일을 <b>빠짐없이 나왔을 때</b>만 붙어요. 쉬는 날로 표시한 "없음" 날짜는 결근으로 안 쳐요. 아무 요일도 안 고른 알바는 주 15시간 이상이면 붙여요.</p>
@@ -600,6 +610,21 @@ input[data-time]{cursor:pointer;caret-color:transparent;font-family:var(--font-n
         <button class="btn" id="cancelReqBtn" type="button" hidden>요청 취소</button>
         <button class="btn" id="offBtn" type="button" hidden>이 날 근무 없음</button>
         <button class="btn danger" id="delBtn" type="button" hidden>이 날 기록 삭제</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- 인원 삭제·퇴사 -->
+<div class="backdrop wbackdrop" id="lBackdrop" hidden>
+  <section class="sheet" id="lSheet" role="dialog" aria-modal="true" aria-labelledby="lTitle" tabindex="-1">
+    <div class="ed-head"><h2 id="lTitle">퇴사 처리</h2></div>
+    <div class="stack">
+      <p style="margin:0;line-height:1.6" id="lText"></p>
+      <div class="sheet-actions">
+        <button class="btn primary" id="lArchive" type="button">퇴사 처리</button>
+        <button class="btn danger" id="lPurge" type="button">기록까지 모두 삭제</button>
+        <button class="btn" id="lCancel" type="button">취소</button>
       </div>
     </div>
   </section>
@@ -769,8 +794,9 @@ function normHist(a){
 }
 function workerDoc(w){
   return { name:w.name, wage:w.wage, wage0:w.wage0 || 0, hist:(w.hist || []).map(function(e){ return { from:e.from, wage:e.wage }; }),
-           deduct:w.deduct, c:w.c, order:w.order, linked:!!w.linked };
+           deduct:w.deduct, c:w.c, order:w.order, linked:!!w.linked, archived:!!w.archived, leftAt:w.leftAt || '' };
 }
+function active(){ return roster.filter(function(w){ return !w.archived; }); }
 function wageOn(w, key){
   var h = w.hist || [];
   if(!h.length) return w.wage;
@@ -781,7 +807,7 @@ function wageOn(w, key){
 function mkWorker(id, d){
   d = d || {};
   return { id:id, name:(typeof d.name === 'string' ? d.name : ''), wage:Number(d.wage) || 0,
-           wage0:Number(d.wage0) || 0, hist:normHist(d.hist),
+           wage0:Number(d.wage0) || 0, hist:normHist(d.hist), archived:!!d.archived, leftAt:(typeof d.leftAt === 'string' ? d.leftAt : ''),
            deduct:(RATES[d.deduct] !== undefined ? d.deduct : 'none'), c:Number(d.c) || 0,
            order:Number(d.order) || 0, linked:!!d.linked };
 }
@@ -1198,7 +1224,7 @@ function renderPay(){
     h += slipRow('세전 합계', fmtWon(s.gross), 'total');
     if(s.rate > 0) h += slipRow(DEDUCT_LABEL[w.deduct], '−' + fmtWon(s.deduct), 'minus');
     cards += '<section class="card wpay" style="--wc:' + cv(w) + '">' +
-      '<div class="wpay-head"><span class="wname"><i class="dot"></i>' + esc(wname(w)) + '</span>' +
+      '<div class="wpay-head"><span class="wname"><i class="dot"></i>' + esc(wname(w)) + (w.archived ? ' <small>(퇴사)</small>' : '') + '</span>' +
       '<span class="wnet">' + fmtWon(s.net) + '<small>' + (s.rate > 0 ? '공제 후' : '세전') + '</small></span></div>' +
       '<p class="sub">시급 ' + s.wages.map(function(x){ return x.toLocaleString('ko-KR'); }).join(' → ') + '원 · ' + DEDUCT_LABEL[w.deduct] + '</p>' +
       '<dl class="slip">' + h + '</dl>' +
@@ -1291,7 +1317,8 @@ function histHtml(w){
   return '<ul class="whist">' + rows + '</ul>';
 }
 function renderWorkers(){
-  $('workers').innerHTML = roster.map(function(w){
+  renderLeft();
+  $('workers').innerHTML = active().map(function(w){
     var opts = Object.keys(DEDUCT_LABEL).map(function(k){
       return '<option value="' + k + '"' + (w.deduct === k ? ' selected' : '') + '>' + DEDUCT_LABEL[k] + '</option>';
     }).join('');
@@ -1306,7 +1333,7 @@ function renderWorkers(){
       '<label class="field"><span class="lbl">공제</span><select data-f="deduct">' + opts + '</select></label>' +
       '</div>' + histHtml(w) + '</div>';
   }).join('') || '<p class="empty">아직 인원이 없어요. 알바가 가입을 신청하면 승인 탭에서 추가돼요.</p>';
-  $('addWorker').disabled = roster.length >= MAX_WORKERS;
+  $('addWorker').disabled = active().length >= MAX_WORKERS;
 }
 
 function renderWeekdays(){
@@ -1314,7 +1341,7 @@ function renderWeekdays(){
   var html = '';
   for(var wd = 0; wd < 7; wd++){
     var ids = weekdayDefaults[wd] || [];
-    var chips = roster.map(function(w){
+    var chips = active().map(function(w){
       var on = ids.indexOf(w.id) >= 0;
       return '<button type="button" class="wchip" data-wid="' + esc(w.id) + '" aria-pressed="' + on + '" style="--wc:' + cv(w) + '">' + esc(wname(w)) + '</button>';
     }).join('');
@@ -1519,8 +1546,8 @@ function defaultDraft(){
   var ids;
   if(role === 'admin'){
     var wd = parseKey(selectedKey).getDay();
-    ids = (weekdayDefaults[wd] || []).filter(function(id){ return !!wById(id); });
-    if(!ids.length) ids = [roster[0].id];
+    ids = (weekdayDefaults[wd] || []).filter(function(id){ var x = wById(id); return !!x && !x.archived; });
+    if(!ids.length) ids = [(active()[0] || roster[0]).id];
   } else ids = [me.id];
   return {
     shifts:ids.map(function(id){ return { wid:id, start:cfg.defStart, end:cfg.defEnd, brk:cfg.defBrk }; }),
@@ -1531,7 +1558,7 @@ function defaultDraft(){
 function rowHtml(r, i){
   var head;
   if(role === 'admin'){
-    var opts = roster.map(function(w){
+    var opts = roster.filter(function(w){ return !w.archived || w.id === r.wid; }).map(function(w){
       return '<option value="' + esc(w.id) + '"' + (w.id === r.wid ? ' selected' : '') + '>' + esc(wname(w)) + '</option>';
     }).join('');
     if(!wById(r.wid)) opts = '<option value="' + esc(r.wid) + '" selected>(삭제된 인원)</option>' + opts;
@@ -1806,12 +1833,12 @@ function renderQuick(){
   $('quickPick').hidden = !!quickWid;
   $('quickEnd').hidden = !quickWid;
   if(quickWid) return;
-  if(!roster.length){
+  if(!active().length){
     $('quickList').innerHTML = '<p class="empty">설정 탭에서 알바 이름과 시급을 먼저 추가해 주세요.</p>';
     return;
   }
   var offOn = !!offDays[tk];
-  $('quickList').innerHTML = roster.map(function(w){
+  $('quickList').innerHTML = active().map(function(w){
     var ap = apOf(w.id)[tk];
     var st = ap ? '기록됨 ' + ap.shifts.map(function(s){ return shortT(s.start) + '-' + shortT(s.end); }).join(', ') : '';
     return '<button type="button" class="qitem' + (ap ? ' done' : '') + '" data-wid="' + esc(w.id) + '" style="--wc:' + cv(w) + '">' +
@@ -1947,10 +1974,10 @@ function parseText(text){
 
 function renderPasteWorkers(){
   var sel = $('pasteWorker');
-  var sig = roster.map(function(w){ return w.id + ':' + wname(w); }).join('|');
+  var sig = active().map(function(w){ return w.id + ':' + wname(w); }).join('|');
   if(sel.dataset.sig === sig) return;
   var keep = sel.value;
-  sel.innerHTML = roster.map(function(w){ return '<option value="' + esc(w.id) + '">' + esc(wname(w)) + '</option>'; }).join('');
+  sel.innerHTML = active().map(function(w){ return '<option value="' + esc(w.id) + '">' + esc(wname(w)) + '</option>'; }).join('');
   sel.dataset.sig = sig;
   if(keep && wById(keep)) sel.value = keep;
 }
@@ -2077,7 +2104,7 @@ $('joinBtn').addEventListener('click', function(){
 /* sheet */
 $('closeSheet').addEventListener('click', closeSheet);
 $('backdrop').addEventListener('click', function(ev){ if(ev.target === $('backdrop')) closeSheet(); });
-document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape'){ if(!$('tBackdrop').hidden) closeTime(); else if(!$('wBackdrop').hidden) closeWage(); else closeSheet(); } });
+document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape'){ if(!$('tBackdrop').hidden) closeTime(); else if(!$('wBackdrop').hidden) closeWage(); else if(!$('lBackdrop').hidden) closeLeave(); else closeSheet(); } });
 $('saveBtn').addEventListener('click', saveDay);
 $('delBtn').addEventListener('click', deleteDay);
 $('offBtn').addEventListener('click', function(){
@@ -2097,7 +2124,7 @@ $('addRow').addEventListener('click', function(){
   var wid;
   if(role === 'admin'){
     var used = draft.shifts.map(function(r){ return r.wid; });
-    var pick = roster.filter(function(w){ return used.indexOf(w.id) < 0; })[0] || roster[0];
+    var pick = active().filter(function(w){ return used.indexOf(w.id) < 0; })[0] || active()[0] || roster[0];
     wid = pick.id;
   } else wid = me.id;
   draft.shifts.push({ wid:wid, start:cfg.defStart, end:cfg.defEnd, brk:cfg.defBrk });
@@ -2148,7 +2175,7 @@ $('panel-approve').addEventListener('click', function(ev){
       var ded = jc.querySelector('[data-f="deduct"]').value;
       if(!name){ toast('이름을 넣어 주세요.'); return; }
       if(!wage){ toast('시급을 넣어 주세요.'); return; }
-      if(roster.length >= MAX_WORKERS){ toast('인원은 최대 ' + MAX_WORKERS + '명까지 둘 수 있어요.'); return; }
+      if(active().length >= MAX_WORKERS){ toast('인원은 최대 ' + MAX_WORKERS + '명까지 둘 수 있어요.'); return; }
       var worker = { name:name, wage:wage, deduct:(RATES[ded] !== undefined ? ded : 'none'), c:newColor(), order:Date.now(), linked:true };
       enqueue(async function(){
         await db.doc('roster/' + jid).set(worker);
@@ -2181,8 +2208,8 @@ $('approveAll').addEventListener('click', function(){
 
 /* settings: workers */
 $('addWorker').addEventListener('click', function(){
-  if(role !== 'admin' || roster.length >= MAX_WORKERS) return;
-  var w = mkWorker('m' + Math.random().toString(36).slice(2, 9), { name:'알바' + (roster.length + 1), wage:lastWage(), deduct:'none', c:newColor(), order:Date.now(), linked:false });
+  if(role !== 'admin' || active().length >= MAX_WORKERS) return;
+  var w = mkWorker('m' + Math.random().toString(36).slice(2, 9), { name:'알바' + (active().length + 1), wage:lastWage(), deduct:'none', c:newColor(), order:Date.now(), linked:false });
   roster.push(w);
   renderWorkers(); renderWeekdays();
   enqueue(function(){ return db.doc('roster/' + w.id).set(workerDoc(w)); });
@@ -2219,7 +2246,11 @@ $('workers').addEventListener('click', function(ev){
   var card = btn.closest('[data-wid]');
   var w = card ? wById(card.dataset.wid) : null;
   if(!w) return;
-  if(hasRecords(w.id)){ toast('근무 기록이 있는 인원은 삭제할 수 없어요.'); return; }
+  if(hasRecords(w.id)){ openLeave(w.id); return; }
+  purgeWorker(w);
+});
+function purgeWorker(w){
+  var akeys = Object.keys(apOf(w.id)), skeys = Object.keys(subOf(w.id));
   roster = roster.filter(function(x){ return x.id !== w.id; });
   for(var i = 0; i < 7; i++){
     if(weekdayDefaults[i]) weekdayDefaults[i] = weekdayDefaults[i].filter(function(id){ return id !== w.id; });
@@ -2227,9 +2258,69 @@ $('workers').addEventListener('click', function(ev){
   clearTimeout(rosterTimers[w.id]);
   delete rosterTimers[w.id];
   unwatchWorker(w.id);
-  renderWorkers(); renderWeekdays();
+  renderAll(); renderWorkers(); renderWeekdays();
   persistWd();
-  enqueue(function(){ return db.doc('roster/' + w.id).delete(); });
+  enqueue(async function(){
+    for(var a = 0; a < akeys.length; a++) await db.doc('approved/' + w.id + '/days/' + akeys[a]).delete();
+    for(var b2 = 0; b2 < skeys.length; b2++) await db.doc('submissions/' + w.id + '/days/' + skeys[b2]).delete();
+    await db.doc('roster/' + w.id).delete();
+  });
+}
+/* 퇴사 처리 / 삭제 */
+var leaveWid = null;
+function openLeave(wid){
+  var w = wById(wid);
+  if(!w) return;
+  leaveWid = wid;
+  var n = Object.keys(apOf(wid)).length;
+  $('lTitle').textContent = wname(w) + ' 정리하기';
+  $('lText').innerHTML = '근무 기록이 ' + n + '일 있어서 바로 지울 수 없어요.<br><b>퇴사 처리</b>를 하면 목록에서만 빠지고, 지난 기록과 정산은 그대로 남아요.' + (w.archived ? '' : '');
+  $('lArchive').hidden = !!w.archived;
+  $('lBackdrop').hidden = false;
+  $('lSheet').focus();
+}
+function closeLeave(){ $('lBackdrop').hidden = true; leaveWid = null; }
+$('lCancel').addEventListener('click', closeLeave);
+$('lBackdrop').addEventListener('click', function(ev){ if(ev.target === $('lBackdrop')) closeLeave(); });
+$('lArchive').addEventListener('click', function(){
+  var w = leaveWid ? wById(leaveWid) : null;
+  if(!w) return;
+  w.archived = true; w.leftAt = todayKey();
+  for(var i = 0; i < 7; i++){
+    if(weekdayDefaults[i]) weekdayDefaults[i] = weekdayDefaults[i].filter(function(id){ return id !== w.id; });
+  }
+  persistWorker(w); persistWd();
+  closeLeave(); renderAll(); renderWorkers(); renderWeekdays();
+  toast(wname(w) + ' 퇴사 처리했어요. 기록은 남아 있어요.');
+});
+function askPurge(w){
+  var n = Object.keys(apOf(w.id)).length;
+  if(!confirm(wname(w) + '의 근무 기록 ' + n + '일이 모두 지워져요. 되돌릴 수 없어요. 정말 삭제할까요?')) return;
+  closeLeave();
+  purgeWorker(w);
+  toast('기록까지 모두 삭제했어요.');
+}
+$('lPurge').addEventListener('click', function(){ var w = leaveWid ? wById(leaveWid) : null; if(w) askPurge(w); });
+function renderLeft(){
+  var list = roster.filter(function(w){ return w.archived; });
+  $('leftCard').hidden = !list.length;
+  $('leftList').innerHTML = list.map(function(w){
+    var p = (w.leftAt || '').split('-');
+    var when = p.length === 3 ? (Number(p[1]) + '/' + Number(p[2]) + ' 퇴사') : '퇴사';
+    return '<div class="lrow" data-wid="' + esc(w.id) + '"><i class="dot" style="--wc:' + cv(w) + '"></i><span class="nm">' + esc(wname(w)) + '<small>' + when + '</small></span>' +
+      '<button type="button" class="btn" data-lact="back">복귀</button><button type="button" class="btn danger" data-lact="purge">삭제</button></div>';
+  }).join('');
+}
+$('leftList').addEventListener('click', function(ev){
+  var b = ev.target.closest('[data-lact]');
+  if(!b) return;
+  var row = b.closest('[data-wid]'), w = row ? wById(row.dataset.wid) : null;
+  if(!w) return;
+  if(b.dataset.lact === 'back'){
+    if(active().length >= MAX_WORKERS){ toast('인원은 최대 ' + MAX_WORKERS + '명까지 둘 수 있어요.'); return; }
+    w.archived = false; w.leftAt = '';
+    persistWorker(w); renderAll(); renderWorkers(); renderWeekdays(); toast(wname(w) + ' 복귀 처리했어요.');
+  } else { leaveWid = w.id; askPurge(w); }
 });
 
 
